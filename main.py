@@ -1,44 +1,52 @@
 import requests
+import urllib3
 
-# Ovi linkovi rade 100% (Provjereno sad)
+# Iskljucujemo upozorenja za sigurnost (idemo na silu)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# --- IZVORI ---
 IZVORI = [
     "https://iptv-org.github.io/iptv/countries/ba.m3u", # Bosna
     "https://iptv-org.github.io/iptv/countries/hr.m3u", # Hrvatska
     "https://iptv-org.github.io/iptv/countries/rs.m3u", # Srbija
-    "https://iptv-org.github.io/iptv/countries/mk.m3u", # Makedonija
-    "https://raw.githubusercontent.com/notanewbie/LegalStream/main/packages/sport.m3u" # Sport Mix
+    "https://raw.githubusercontent.com/notanewbie/LegalStream/main/packages/sport.m3u" # Sport
 ]
 
 def main():
-    print("--- SPAJAM LISTE... ---")
+    print("--- POČINJEM DIAGNOSTIKU ---")
     
-    # Otvaramo fajl i pisemo zaglavlje
-    with open("lista.m3u", "w", encoding="utf-8") as f:
-        f.write("#EXTM3U\n")
-        
-        for url in IZVORI:
-            print(f"Skidam sa: {url}...")
-            try:
-                r = requests.get(url, timeout=15)
-                if r.status_code == 200:
-                    # Uzimamo tekst
-                    sadrzaj = r.text
-                    
-                    # Razdvajamo na linije
-                    linije = sadrzaj.split('\n')
-                    
-                    # Ako prva linija sadrzi #EXTM3U, preskacemo je (jer vec imamo nasu)
-                    if linije and "#EXTM3U" in linije[0]:
-                        linije = linije[1:]
-                    
-                    # Upisujemo sve ostalo u nas fajl
-                    f.write('\n'.join(linije) + "\n")
-                    print(f"   -> USPJEH! Dodano linija: {len(linije)}")
-                else:
-                    print(f"   -> GRESKA! Server vratio kod: {r.status_code}")
-            except Exception as e:
-                print(f"   -> GRESKA! {e}")
+    # Otvaramo fajl
+    f = open("lista.m3u", "w", encoding="utf-8")
+    
+    # Pisemo zaglavlje
+    f.write("#EXTM3U\n")
+    
+    # 1. UPISUJEMO TESTNI KANAL (DA VIDIMO RADI LI PISANJE)
+    f.write('#EXTINF:-1 group-title="Test", --- AKO VIDIS OVO PISANJE RADI ---\n')
+    f.write("http://google.com\n")
+    
+    # 2. SKIDANJE KANALA (NA SILU)
+    for url in IZVORI:
+        print(f"Pokusavam skinuti: {url}...")
+        try:
+            # verify=False znaci: "Ne provjeravaj sigurnost, samo daj podatke"
+            r = requests.get(url, timeout=30, verify=False)
+            
+            print(f"   -> KOD SERVERA: {r.status_code}")
+            
+            if r.status_code == 200:
+                sadrzaj = r.text
+                # Micemo #EXTM3U iz tudjih lista da ne kvari nasu
+                sadrzaj = sadrzaj.replace("#EXTM3U", "")
+                f.write(sadrzaj + "\n")
+                print("   -> USPJEH! Podaci upisani.")
+            else:
+                print("   -> BLOKADA! Server ne da podatke robotu.")
+                
+        except Exception as e:
+            print(f"   -> GRESKA KONEKCIJE: {e}")
 
+    f.close()
     print("--- GOTOVO ---")
 
 if __name__ == "__main__":
