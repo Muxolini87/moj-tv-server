@@ -1,75 +1,45 @@
 import requests
 
-# --- IZVORI ---
-# Koristimo direktne liste koje nisu osjetljive na blokade
+# Ovi linkovi rade 100% (Provjereno sad)
 IZVORI = [
-    "https://raw.githubusercontent.com/djaweb/djaweb/master/iptv_list", 
-    "https://raw.githubusercontent.com/volartv/volartv/master/playlist.m3u",
-    "https://raw.githubusercontent.com/notanewbie/LegalStream/main/packages/sport.m3u",
-    "https://raw.githubusercontent.com/jnk22/kod/master/m3u/srb.m3u", # Srbija
-    "https://raw.githubusercontent.com/jnk22/kod/master/m3u/bih.m3u", # Bosna
-    "https://raw.githubusercontent.com/jnk22/kod/master/m3u/hrv.m3u"  # Hrvatska
+    "https://iptv-org.github.io/iptv/countries/ba.m3u", # Bosna
+    "https://iptv-org.github.io/iptv/countries/hr.m3u", # Hrvatska
+    "https://iptv-org.github.io/iptv/countries/rs.m3u", # Srbija
+    "https://iptv-org.github.io/iptv/countries/mk.m3u", # Makedonija
+    "https://raw.githubusercontent.com/notanewbie/LegalStream/main/packages/sport.m3u" # Sport Mix
 ]
-
-# --- KLJUCNE RIJECI ---
-# Ako ime kanala sadrzi BILO STA od ovoga, uzimamo ga!
-TRAZIMO = [
-    "arena", "sport", "klub", "premier", "euro", "champions", "nba", # Sport
-    "bht", "ftv", "federalna", "rtrs", "bn", "hayat", "face", "obn", # BiH
-    "hrt", "rtl", "nova", "doma", "cinestar", # HR
-    "rts", "prva", "b92", "pink", "happy", "superstar", # SRB
-    "hbo", "fox", "film", "movie", "serija", "balkan", "exyu" # Ostalo
-]
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-}
 
 def main():
-    print("--- TRAZIM KANALE... ---")
+    print("--- SPAJAM LISTE... ---")
     
-    # Otvaramo fajl za pisanje
-    f = open("lista.m3u", "w", encoding="utf-8")
-    f.write("#EXTM3U\n")
-    
-    brojac = 0
-    
-    for izvor in IZVORI:
-        print(f"Obradjujem: {izvor}...")
-        try:
-            r = requests.get(izvor, headers=HEADERS, timeout=15)
-            if r.status_code == 200:
-                lines = r.text.split('\n')
-                
-                for i in range(len(lines)):
-                    line = lines[i].strip()
+    # Otvaramo fajl i pisemo zaglavlje
+    with open("lista.m3u", "w", encoding="utf-8") as f:
+        f.write("#EXTM3U\n")
+        
+        for url in IZVORI:
+            print(f"Skidam sa: {url}...")
+            try:
+                r = requests.get(url, timeout=15)
+                if r.status_code == 200:
+                    # Uzimamo tekst
+                    sadrzaj = r.text
                     
-                    # Trazimo link
-                    if line.startswith("http"):
-                        # Ime je obicno u liniji iznad
-                        ime_kanala = "Nepoznat Kanal"
-                        if i > 0:
-                            prev_line = lines[i-1].strip()
-                            if prev_line.startswith("#EXTINF"):
-                                ime_kanala = prev_line
-                        
-                        # Provjera (Case Insensitive)
-                        full_text = (ime_kanala + line).lower()
-                        
-                        if any(k in full_text for k in TRAZIMO):
-                            # Upisujemo u fajl
-                            if not ime_kanala.startswith("#EXTINF"):
-                                f.write(f'#EXTINF:-1 group-title="BalkanMix", Kanal {brojac}\n')
-                            else:
-                                f.write(ime_kanala + "\n")
-                            
-                            f.write(line + "\n")
-                            brojac += 1
-        except:
-            pass
+                    # Razdvajamo na linije
+                    linije = sadrzaj.split('\n')
+                    
+                    # Ako prva linija sadrzi #EXTM3U, preskacemo je (jer vec imamo nasu)
+                    if linije and "#EXTM3U" in linije[0]:
+                        linije = linije[1:]
+                    
+                    # Upisujemo sve ostalo u nas fajl
+                    f.write('\n'.join(linije) + "\n")
+                    print(f"   -> USPJEH! Dodano linija: {len(linije)}")
+                else:
+                    print(f"   -> GRESKA! Server vratio kod: {r.status_code}")
+            except Exception as e:
+                print(f"   -> GRESKA! {e}")
 
-    f.close()
-    print(f"--- GOTOVO! UPISANO {brojac} KANALA ---")
+    print("--- GOTOVO ---")
 
 if __name__ == "__main__":
     main()
