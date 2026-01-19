@@ -1,90 +1,75 @@
 import requests
 
-# --- IZVORI (AGRESIVNA LISTA) ---
-# Ovdje kupimo sve sa Balkana sto postoji na GitHubu
+# --- IZVORI ---
+# Koristimo direktne liste koje nisu osjetljive na blokade
 IZVORI = [
-    "https://raw.githubusercontent.com/junguler/iptv-playlist/main/playlists/ba.m3u", # Bosna
-    "https://raw.githubusercontent.com/junguler/iptv-playlist/main/playlists/hr.m3u", # Hrvatska
-    "https://raw.githubusercontent.com/junguler/iptv-playlist/main/playlists/rs.m3u", # Srbija
-    "https://raw.githubusercontent.com/junguler/iptv-playlist/main/playlists/mk.m3u", # Makedonija
-    "https://raw.githubusercontent.com/junguler/iptv-playlist/main/playlists/si.m3u", # Slovenija
-    "https://raw.githubusercontent.com/djaweb/djaweb/master/iptv_list", # Mix
-    "https://raw.githubusercontent.com/notanewbie/LegalStream/main/packages/sport.m3u" # Sport Mix
+    "https://raw.githubusercontent.com/djaweb/djaweb/master/iptv_list", 
+    "https://raw.githubusercontent.com/volartv/volartv/master/playlist.m3u",
+    "https://raw.githubusercontent.com/notanewbie/LegalStream/main/packages/sport.m3u",
+    "https://raw.githubusercontent.com/jnk22/kod/master/m3u/srb.m3u", # Srbija
+    "https://raw.githubusercontent.com/jnk22/kod/master/m3u/bih.m3u", # Bosna
+    "https://raw.githubusercontent.com/jnk22/kod/master/m3u/hrv.m3u"  # Hrvatska
 ]
 
-# --- KLJUCNE RIJECI (STA TRAZIMO) ---
-# Trazimo sve varijacije imena
+# --- KLJUCNE RIJECI ---
+# Ako ime kanala sadrzi BILO STA od ovoga, uzimamo ga!
 TRAZIMO = [
-    # SPORT (Najbitnije)
-    "arena", "sport", "klub", "sk 1", "sk 2", "sk 3", "premier", 
-    "mytv", "moja tv", "eurosport", "nba", "champions",
-    # BOSNA
-    "bht", "ftv", "federalna", "rtrs", "bn", "hayat", "face", "obn", "kakanj", "sarajevo", "al jazeera",
-    # HRVATSKA
-    "hrt", "rtl", "nova", "doma", "cinestar",
-    # SRBIJA
-    "rts", "prva", "b92", "pink", "happy", "superstar",
-    # OSTALO
-    "film", "hbo", "fox", "cine", "balkan", "exyu"
+    "arena", "sport", "klub", "premier", "euro", "champions", "nba", # Sport
+    "bht", "ftv", "federalna", "rtrs", "bn", "hayat", "face", "obn", # BiH
+    "hrt", "rtl", "nova", "doma", "cinestar", # HR
+    "rts", "prva", "b92", "pink", "happy", "superstar", # SRB
+    "hbo", "fox", "film", "movie", "serija", "balkan", "exyu" # Ostalo
 ]
 
-# Maska da nas ne blokiraju
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 }
 
 def main():
-    print("--- POCINJEM SAKUPLJANJE BALKANSKIH KANALA ---")
-    konacna_lista = ["#EXTM3U"]
+    print("--- TRAZIM KANALE... ---")
+    
+    # Otvaramo fajl za pisanje
+    f = open("lista.m3u", "w", encoding="utf-8")
+    f.write("#EXTM3U\n")
+    
     brojac = 0
     
     for izvor in IZVORI:
-        print(f"Usisavam: {izvor.split('/')[-1]}...")
+        print(f"Obradjujem: {izvor}...")
         try:
-            r = requests.get(izvor, timeout=15, headers=HEADERS)
+            r = requests.get(izvor, headers=HEADERS, timeout=15)
             if r.status_code == 200:
-                linije = r.text.split('\n')
+                lines = r.text.split('\n')
                 
-                for i in range(len(linije)):
-                    linija = linije[i].strip()
+                for i in range(len(lines)):
+                    line = lines[i].strip()
                     
-                    # Ako nadjemo info o kanalu
-                    if linija.startswith("#EXTINF") and i+1 < len(linije):
-                        url = linije[i+1].strip()
+                    # Trazimo link
+                    if line.startswith("http"):
+                        # Ime je obicno u liniji iznad
+                        ime_kanala = "Nepoznat Kanal"
+                        if i > 0:
+                            prev_line = lines[i-1].strip()
+                            if prev_line.startswith("#EXTINF"):
+                                ime_kanala = prev_line
                         
-                        # Ako url nije prazan i pocinje sa http
-                        if url.startswith("http"):
-                            # Izdvajamo ime kanala radi provjere
-                            ime_kanala = linija.split(',')[-1].strip()
+                        # Provjera (Case Insensitive)
+                        full_text = (ime_kanala + line).lower()
+                        
+                        if any(k in full_text for k in TRAZIMO):
+                            # Upisujemo u fajl
+                            if not ime_kanala.startswith("#EXTINF"):
+                                f.write(f'#EXTINF:-1 group-title="BalkanMix", Kanal {brojac}\n')
+                            else:
+                                f.write(ime_kanala + "\n")
                             
-                            # DA LI JE OVO ONO STO TRAZIMO?
-                            # Provjeravamo sadrzi li ime kanala neku od nasih kljucnih rijeci
-                            if any(kljuc.lower() in ime_kanala.lower() for kljuc in TRAZIMO):
-                                
-                                # Malo uljepsavanja imena grupe
-                                grupa = "Balkan-Mix"
-                                if "arena" in ime_kanala.lower() or "sport" in ime_kanala.lower():
-                                    grupa = "SPORT-JOKER"
-                                elif "bht" in ime_kanala.lower() or "ftv" in ime_kanala.lower() or "mytv" in ime_kanala.lower():
-                                    grupa = "BIH-DOMACI"
-                                
-                                # Dodajemo u nasu listu BEZ PROVJERE (Da izvucemo sve moguce)
-                                konacna_lista.append(f'#EXTINF:-1 group-title="{grupa}",{ime_kanala}')
-                                konacna_lista.append(url)
-                                brojac += 1
-                                print(f"   [+] Nasao: {ime_kanala}")
+                            f.write(line + "\n")
+                            brojac += 1
+        except:
+            pass
 
-        except Exception as e:
-            print(f"   [!] Greska sa izvorom: {e}")
-
-    # Snimanje
-    with open("lista.m3u", "w", encoding="utf-8") as f:
-        f.write('\n'.join(konacna_lista))
-    
-    print("="*40)
-    print(f"GOTOVO! UKUPNO KANALA: {brojac}")
-    print("Link za player je u fajlu 'lista.m3u'")
-    print("="*40)
+    f.close()
+    print(f"--- GOTOVO! UPISANO {brojac} KANALA ---")
 
 if __name__ == "__main__":
     main()
