@@ -1,0 +1,32 @@
+name: Azuriraj TV Listu
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Pokreni svakih 6 sati
+  workflow_dispatch: # Dozvoli da kliknes dugme za rucno pokretanje
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Skini kod
+        uses: actions/checkout@v3
+
+      - name: Postavi Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instaliraj biblioteke
+        run: |
+          pip install requests
+
+      - name: Pokreni skriptu (Pravi listu)
+        run: python main.py
+
+      - name: Snimi promjene (Uploaduj novu listu)
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Automatsko azuriranje liste
+          file_pattern: lista.m3u
