@@ -1,90 +1,66 @@
 import requests
 import urllib3
-import concurrent.futures
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# Trazimo liste koje sadrze user/pass kombinacije (Dumpovi)
 IZVORI = [
-     "https://iptvm3u.vercel.app/"
     "https://raw.githubusercontent.com/djaweb/djaweb/master/iptv_list",
     "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/rs.m3u",
-    "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/ba.m3u",
-    "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/hr.m3u",
-    "https://raw.githubusercontent.com/notanewbie/LegalStream/main/packages/sport.m3u",
-    "https://raw.githubusercontent.com/volartv/volartv/master/playlist.m3u",
-    "https://raw.githubusercontent.com/junguler/iptv-playlist/main/playlists/ba.m3u",
-    "https://raw.githubusercontent.com/junguler/iptv-playlist/main/playlists/rs.m3u",
-    "https://raw.githubusercontent.com/junguler/iptv-playlist/main/playlists/hr.m3u"
+    "https://raw.githubusercontent.com/listas-iptv/iptv-listas/master/iptv.m3u",
+    "https://raw.githubusercontent.com/appatver/iptv/master/iptv.m3u",
+    "https://raw.githubusercontent.com/sazzad666/IPTV/master/playlist.m3u"
 ]
 
-TRAZIMO = [
-    "arena", "sport", "klub", "as 1", "as 2", "as 3", "premier", "champions",
-    "bi h", "bih", "bosna", "srbija", "hrvatska", "bht", "ftv", "federalna", 
-    "rts", "rtrs", "bn", "prva", "nova", "rtl", "hrt", "pink", "b92", 
-    "cinestar", "hbo", "fox", "film", "movie", "balkan"
-]
+# Trazimo BILO STA sto lici na Arenu, ali samo ako je link "ozbiljan"
+TRAZIMO = ["arena", "sport", "klub", "premier", "champions", "as 1", "as 2"]
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
 }
 
-def provjeri_kanal(kanal_info):
-    ime, url = kanal_info
-    try:
-        # TIMEOUT POVEĆAN NA 6 SEKUNDI (Za sporije Arene)
-        with requests.get(url, stream=True, timeout=6, headers=HEADERS, verify=False) as r:
-            # Prihvatamo kodove 200 (OK), 301/302 (Redirect)
-            if r.status_code in [200, 301, 302]:
-                return (ime, url)
-    except:
-        pass
-    return None
-
 def main():
-    print("--- SKENIRANJE SA VEĆOM TOLERANCIJOM ---")
+    print("--- TRAZIM PROBIJENE SERVERE (USER/PASS) ---")
     
-    kandidati = []
-    vidjeni_linkovi = set()
+    f = open("lista.m3u", "w", encoding="utf-8")
+    f.write("#EXTM3U\n")
+    brojac = 0
     
-    # 1. USISAVANJE
     for url in IZVORI:
         try:
             r = requests.get(url, timeout=15, verify=False)
-            if r.status_code == 200:
-                linije = r.text.split('\n')
-                for i in range(len(linije)):
-                    line = linije[i].strip()
-                    if line.startswith("http"):
-                        ime = "Nepoznat"
+            linije = r.text.split('\n')
+            
+            for i in range(len(linije)):
+                line = linije[i].strip()
+                
+                if line.startswith("http"):
+                    # PRVI UVJET: Link mora liciti na placeni server
+                    # (mora imati port :8080, :80, :25461 ili username=)
+                    je_ozbiljan_server = False
+                    if ":80" in line or "username=" in line or "token=" in line:
+                        je_ozbiljan_server = True
+                    
+                    if je_ozbiljan_server:
+                        # DRUGI UVJET: Mora biti Arena ili Sport
+                        ime = "Nepoznat Kanal"
                         if i > 0 and linije[i-1].startswith("#EXTINF"):
-                            ime = linije[i-1].strip()
+                            ime = linije[i-1]
                         
                         full_text = (ime + line).lower()
+                        
                         if any(k in full_text for k in TRAZIMO):
-                            if line not in vidjeni_linkovi:
-                                vidjeni_linkovi.add(line)
-                                kandidati.append((ime, line))
+                            # BINGO! Nasli smo placeni link koji je procurio
+                            if not ime.startswith("#EXTINF"):
+                                f.write(f'#EXTINF:-1 group-title="HAKOVANO-VIP", Kanal {brojac}\n')
+                            else:
+                                f.write(ime + "\n")
+                            f.write(line + "\n")
+                            brojac += 1
         except: pass
 
-    print(f"Kandidata: {len(kandidati)}")
-    
-    # 2. TESTIRANJE (50 radnika)
-    zivi_kanali = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
-        rezultati = list(executor.map(provjeri_kanal, kandidati))
-    
-    for res in rezultati:
-        if res: zivi_kanali.append(res)
-
-    print(f"--- PREŽIVJELO: {len(zivi_kanali)} ---")
-
-    # 3. SNIMANJE
-    with open("lista.m3u", "w", encoding="utf-8") as f:
-        f.write("#EXTM3U\n")
-        for ime, url in zivi_kanali:
-            if "group-title" not in ime:
-                ime = ime.replace("#EXTINF:-1", '#EXTINF:-1 group-title="JokerTV"')
-            f.write(f"{ime}\n{url}\n")
+    f.close()
+    print(f"--- GOTOVO! NASAO SAM {brojac} VIP KANALA ---")
 
 if __name__ == "__main__":
     main()
