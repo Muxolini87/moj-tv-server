@@ -1,4 +1,6 @@
 #EXTM3U
+#EXTINF:-1 group-title="JokerTV" tvg-id="BalkanRadioSalzburg.at@SD",Balkan Radio Salzburg (480p)
+https://channel.streams.ovh:1936/balkanradiosalzburgtv/balkanradiosalzburgtv/playlist.m3u8
 #EXTINF:-1 group-title="JokerTV" tvg-id="NarodnaTV.rs@SD",Narodna TV (720p)
 https://edge8.pink.rs/narodnatv/index.m3u8
 #EXTINF:-1 group-title="JokerTV" tvg-id="Pink.rs@SD",Pink (720p)
@@ -21,6 +23,8 @@ https://lon.rtsp.me/dEqnY-myGj84bKrieCIPfA/1743271667/hls/3dH3YAD6.m3u8
 https://pluslive.rtrs.tv/plus/plus/playlist.m3u8
 #EXTINF:-1 group-title="JokerTV" tvg-id="RTRSTV.ba@SD",RTRS TV (576p) [Not 24/7]
 https://uzivo.rtrs.tv/tv/live/index.m3u8
+#EXTINF:-1 group-title="JokerTV" tvg-id="Televizija5.ba@SD",Televizija 5 (576p)
+https://balkanmedia.dynu.net/hls/tv5web.m3u8
 #EXTINF:-1 group-title="JokerTV" tvg-id="BravoKidsTV.hr@SD",Bravo! Kids TV (1080p)
 https://streaming.social3.hr/play/r3CK_tdsFIFL3bN7w4NW1plrwsCToUBsRFjhxM68sZY/m3u8
 Nepoznat
